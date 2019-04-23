@@ -1,6 +1,3 @@
-/*
-	Codigo baseado em http://www.circuitbasics.com/raspberry-pi-ds18b20-temperature-sensor-tutorial/
-*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -18,14 +15,9 @@
 // #define SHM_KEY 0x1434	/* SHM = Shared Memory */
 // #define BUFFER_KEY 0x1435 /* Segunda Tarefa */
 
-typedef struct
-{
-	char user[20];
-	char msg[80];
-	int flag;
-} db;
+pthread_mutex_t job_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-db db1[10];
+int maior;
 
 int count;
 
@@ -109,13 +101,14 @@ int main(int argc, char *argv[])
 			perror("Accept()");
 			exit(5);
 		}
-		printf("%i\n", ns);
+		// printf("%i\n", ns);
 		param = (int *)(long)ns;
 		/* Criar thread */
 		/* (id, null, function, params)*/
 		pthread_create(&thread_id, NULL, atendeCliente, (void *)param);
+		pthread_detach(thread_id);
 
-		printf("Thread criada: %li\n", (long int)thread_id);
+		// printf("Thread criada: %li\n", (long int)thread_id);
 
 		/* Fecha o socket conectado ao cliente */
 		//pthread_join(thread_id[i], NULL);
@@ -146,27 +139,33 @@ void *atendeCliente(void *param)
 	user = NULL;
 	msg = NULL;
 
-	printf("Dentro da thread %li\n", tid);
-	printf("%li\n", (long int)param);
+	// printf("Dentro da thread %li\n", tid);
+	// printf("%li\n", (long int)param);
 	do
 	{
 		/* Recebe uma mensagem do cliente atraves do novo socket conectado */
 		z = recv((long int)param, recvbuf, sizeof(recvbuf), 0);
 		if (z != -1 && z != 0)
 		{
-				printf("Mensagem recebida do cliente: %s -- %i bytes\n", recvbuf, z);
-				strcpy(sendbuf, "");
-				
-				strcpy(sendbuf, "\nSalvo com sucesso!\n");
-				/* Envia uma mensagem ao cliente atraves do socket conectado */
-				if (send((long int)param, sendbuf, strlen(sendbuf) + 1, 0) < 0)
-				{
-					perror("Send()");
-					exit(7);
-				}
-				printf("Mensagem enviada ao cliente: %s\n", sendbuf);
-				printf("=====================================================================\n");
-			
+			printf("Mensagem recebida do cliente: %s\n", recvbuf);
+			pthread_mutex_lock (&job_queue_mutex); //LOCK
+			if(maior < atoi(recvbuf)){
+				maior = atoi(recvbuf);
+				strcpy(sendbuf, "1");
+			}
+			else{
+				strcpy(sendbuf, "\n\n");
+			}
+			pthread_mutex_unlock (&job_queue_mutex); //UNLOCK
+
+			/* Envia uma mensagem ao cliente atraves do socket conectado */
+			if (send((long int)param, sendbuf, strlen(sendbuf) + 1, 0) < 0)
+			{
+				perror("Send()");
+				exit(7);
+			}
+			printf("Mensagem enviada ao cliente: %s\n", sendbuf);
+			printf("=====================================================================\n");
 		}
 		else
 		{
