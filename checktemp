@@ -1,0 +1,12 @@
+#!/usr/bin/expect
+
+cd /home/pi/Desktop/Projetos
+spawn ./TCP-Cliente-Basico-1 0.0.0.0 5500
+
+
+	temp=$(cat /sys/bus/w1/devices/28-0516a46321ff/w1_slave | sed -n 's/^.*\(t=[^ ]*\).*/\1/p' | sed 's/t=//' | awk '{x=$1}END{print(x/1000)}')
+	expect "DATA IN"
+	send $temp
+	sleep 1s
+
+
