@@ -1,4 +1,3 @@
-﻿#include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -9,10 +8,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-
+#include <wiringPi.h>
+#include <stdio.h>
+#include <stdint.h> 
 /*
  * Cliente TCP
  */
+
+#define ledPin 17
+
 int main(int argc, char *argv[]) {
     unsigned short port;
     FILE *file;
@@ -20,10 +24,10 @@ int main(int argc, char *argv[]) {
     char recvbuf[1500];
     struct hostent *hostnm;
     struct sockaddr_in server;
-    int s, x;
+    int s, x, number;
     float temp = 0.0;
-    char command[] = "cat /sys/bus/w1/devices/28-0516a46321ff/w1_slave | sed -n \'s/^.*\\(t=[^ ]*\\).*/\\1/p\' | sed \'s/t=//\' | awk \'{x=$1}END{print(x/1000)}\'";
-    
+   // char command[] = "cat /sys/bus/w1/devices/28-0516a46321ff/w1_slave | sed -n \'s/^.*\\(t=[^ ]*\\).*/\\1/p\' | sed \'s/t=//\' | awk \'{x=$1}END{print(x/1000)}\'";
+   wiringPiSetupGpio(); 
 
     /*
      * O primeiro argumento (argv[1]) eh o hostname do servidor.
@@ -67,14 +71,17 @@ int main(int argc, char *argv[]) {
         perror("\nERRO ao conectar com o servidor\n");
         exit(4);
     }
-
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, HIGH);
     while (1) {
-        
-        if((file = popen(command, "r")) != NULL){
-			x = fread(sendbuf, sizeof(char), 2000, file);
-			sendbuf[x] = '\0';
+	digitalWrite(ledPin, LOW);
+       // if((file = popen(command, "r")) != NULL){
+			//x = fread(sendbuf, sizeof(char), 2000, file);
+			number = rand() % 30 + 1;
+			sprintf(sendbuf, "%d", number);
+			//sendbuf[x] = '\0';
 			printf("%s", sendbuf);
-		}
+		//}
         
         if (send(s, sendbuf, strlen(sendbuf) + 1, 0) < 0) {
             perror("\nERRO ao enviar a mensagem(1)\n");
@@ -86,9 +93,12 @@ int main(int argc, char *argv[]) {
             perror("\nERRO ao receber a mensagem(1)\n");
             exit(6);
         }
-        sleep(1);
+	sleep(2);
+	if(atoi(recvbuf) == 1){
+	  digitalWrite(ledPin, HIGH);
+	}
+        sleep(2);
         printf("%s\n", recvbuf);
-        
     }
     close(s);
     
